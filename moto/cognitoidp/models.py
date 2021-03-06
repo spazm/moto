@@ -321,18 +321,25 @@ class CognitoIdpUser(BaseModel):
         }
 
     # list_users brings back "Attributes" while admin_get_user brings back "UserAttributes".
-    def to_json(self, extended=False, attributes_key="Attributes"):
+    def to_json(
+        self, extended=False, attributes_key="Attributes", attributes_to_get=[]
+    ):
         user_mfa_setting_list = []
         if self.software_token_mfa_enabled:
             user_mfa_setting_list.append("SOFTWARE_TOKEN_MFA")
         elif self.sms_mfa_enabled:
             user_mfa_setting_list.append("SMS_MFA")
         user_json = self._base_json()
+        attributes = self.attributes
+        if attributes and attributes_to_get:
+            attributes = [
+                attr for attr in attributes if attr["Name"] in attributes_to_get
+            ]
         if extended:
             user_json.update(
                 {
                     "Enabled": self.enabled,
-                    attributes_key: self.attributes,
+                    attributes_key: attributes,
                     "MFAOptions": [],
                     "UserMFASettingList": user_mfa_setting_list,
                 }
