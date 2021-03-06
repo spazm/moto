@@ -1095,6 +1095,81 @@ def test_list_users():
 
 
 @mock_cognitoidp
+def test_list_users_attributes_to_get():
+    conn = boto3.client("cognito-idp", "us-west-2")
+
+    username = str(uuid.uuid4())
+    user_pool_id = conn.create_user_pool(PoolName=str(uuid.uuid4()))["UserPool"]["Id"]
+
+    username = str(uuid.uuid4())
+    conn.admin_create_user(
+        UserPoolId=user_pool_id,
+        Username=username,
+        UserAttributes=[
+            {"Name": "phone_number", "Value": "+33666666666"},
+            {"Name": "email", "Value": "user@example.com"},
+        ],
+    )
+
+    # include known attribute
+    result = conn.list_users(UserPoolId=user_pool_id, AttributesToGet=["email"],)
+    print(result["Users"][0])
+    result["Users"].should.have.length_of(1)
+    result["Users"][0]["Username"].should.equal(username)
+    result["Users"][0]["Attributes"].should.have.length_of(1)
+    result["Users"][0]["Attributes"].should.contain(
+        {"Name": "email", "Value": "user@example.com"}
+    )
+
+    # include unknown attribute
+    result = conn.list_users(UserPoolId=user_pool_id, AttributesToGet=("unknown",))
+    print(result["Users"][0])
+    result["Users"].should.have.length_of(1)
+    result["Users"][0]["Username"].should.equal(username)
+    result["Users"][0]["Attributes"].should.have.length_of(0)
+
+    # include all attributes explicitly
+    result = conn.list_users(
+        UserPoolId=user_pool_id, AttributesToGet=["email", "phone_number"],
+    )
+    print(result["Users"][0])
+    result["Users"].should.have.length_of(1)
+    result["Users"][0]["Username"].should.equal(username)
+    result["Users"][0]["Attributes"].should.have.length_of(2)
+    result["Users"][0]["Attributes"].should.contain(
+        {"Name": "email", "Value": "user@example.com"}
+    )
+    result["Users"][0]["Attributes"].should.contain(
+        {"Name": "phone_number", "Value": "+33666666666"}
+    )
+
+    # include all attributes by empty list
+    result = conn.list_users(UserPoolId=user_pool_id, AttributesToGet=[],)
+    print(result["Users"][0])
+    result["Users"].should.have.length_of(1)
+    result["Users"][0]["Username"].should.equal(username)
+    result["Users"][0]["Attributes"].should.have.length_of(2)
+    result["Users"][0]["Attributes"].should.contain(
+        {"Name": "email", "Value": "user@example.com"}
+    )
+    result["Users"][0]["Attributes"].should.contain(
+        {"Name": "phone_number", "Value": "+33666666666"}
+    )
+
+    # include all attributes by default
+    result = conn.list_users(UserPoolId=user_pool_id, AttributesToGet=[],)
+    print(result["Users"][0])
+    result["Users"].should.have.length_of(1)
+    result["Users"][0]["Attributes"].should.have.length_of(2)
+    result["Users"][0]["Attributes"].should.contain(
+        {"Name": "email", "Value": "user@example.com"}
+    )
+    result["Users"][0]["Attributes"].should.contain(
+        {"Name": "phone_number", "Value": "+33666666666"}
+    )
+
+
+@mock_cognitoidp
 def test_list_users_returns_limit_items():
     conn = boto3.client("cognito-idp", "us-west-2")
     user_pool_id = conn.create_user_pool(PoolName=str(uuid.uuid4()))["UserPool"]["Id"]
